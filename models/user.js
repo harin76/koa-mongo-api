@@ -34,7 +34,7 @@ User.prototype.hashPassword = function *(password) {
 * @param {string} prop  The property name whaich needs to be retrieved
 */
 User.prototype.get = function (prop) {
-    return this.data[name];
+    return this.data[prop];
 };
 
 /**
@@ -44,7 +44,7 @@ User.prototype.get = function (prop) {
 * @param {?}      value     The value of the property
 */
 User.prototype.set = function (prop, value) {
-    this.name = value;
+    this[prop] = value;
 };
 
 /**

@@ -4,7 +4,7 @@
   "description": "A boilerplate to kick start rest api devlopment in koa and mongodb",
   "main": "index.js",
   "scripts": {
-    "test": "mocha",
+    "test": "mocha --harmony",
     "start": "node --harmony index.js"
   },
   "repository": {
@@ -37,5 +37,12 @@
     "mongodb": "^2.0.39",
     "thunkify": "^2.1.2",
     "validr": "^0.1.6"
+  },
+  "devDependencies": {
+    "chance": "^0.7.6",
+    "co-mocha": "^1.1.2",
+    "icedfrisby": "^0.2.4",
+    "joi": "^6.6.1",
+    "mocha": "^2.2.5"
   }
 }
