@@ -2,7 +2,7 @@
 
 let config = require('./config.global');
 
-config.env = "development";
-config.mongo.dbName = "myApp";
+config.env = "test";
+config.mongo.dbName = "myAppTest";
 
 module.exports = config;

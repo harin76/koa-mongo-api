@@ -2,7 +2,7 @@
 
 let parse = require('co-body'),
     db = require('../../db'),
-    User = require('../../models/User'),
+    User = require('../../models/user'),
     authLib = require('../../lib/authLib'),
     Constants = require('../../lib/constants'),
     jwt = require('jsonwebtoken'),
@@ -55,8 +55,20 @@ let login = exports.login = function *() {
     };
 };
 
+/**
+* Get user profile information
+*/
+let profile = exports.profile = function *() {
+    let result = yield User.findById(getCollection(this), this.user.id);
+    if(result.errors) {
+        this.throw(401, JSON.stringify(result));
+    }
+    this.body = result;
+};
+
 // Register the API endpoints
 let register = exports.register = function(router) {
     router.post('/users', createUser);
     router.post('/users/login', login);
+    router.get('/me', authLib.isAuth, profile);
 };
