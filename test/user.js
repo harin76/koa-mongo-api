@@ -28,16 +28,17 @@ let createUser = function () {
     };
 };
 
-let testUser = createUser();
+(function(testUser) {
 
 frisby.globalSetup({
     request: {
         headers: {'Content-Type': 'application/json'}
-    }});
+    }
+});
 
 frisby.create('Create a valid user')
     .useApp(app)
-    .post(BASE_URL+'users', createUser(), {json:true})
+    .post(BASE_URL+'users', testUser, {json:true})
     .expectStatus(201)
 .toss();
 
@@ -47,19 +48,12 @@ frisby.create('Create an invalid user')
     .expectStatus(400)
 .toss();
 
-frisby.create('create a user and login')
+frisby.create('login the user and get a jwt token back')
     .useApp(app)
-    .post(BASE_URL+'users', testUser, {json:true})
-    .expectStatus(201)
-    .afterJSON(function(json){
-        frisby.create('login the user')
-            .useApp(app)
-            .post(BASE_URL + 'users/login', {emailId:testUser.emailId, password: testUser.password}, {json:true})
-            .expectStatus(200)
-            .expectJSONTypes({
-                token: Joi.string().required()
-            })
-        .toss();
+    .post(BASE_URL + 'users/login', {emailId:testUser.emailId, password: testUser.password}, {json:true})
+    .expectStatus(200)
+    .expectJSONTypes({
+        token: Joi.string().required()
     })
 .toss();
 
@@ -69,19 +63,25 @@ frisby.create('Access profile without login')
     .expectStatus(401)
 .toss();
 
+frisby.create('Update profile without login')
+    .useApp(app)
+    .put(BASE_URL + 'me', testUser, {json:true})
+    .expectStatus(401)
+.toss();
+
 
 frisby.create('Access profile after login')
     .useApp(app)
     .post(BASE_URL + 'users/login', {emailId:testUser.emailId, password: testUser.password}, {json:true})
     .expectStatus(200)
-    .afterJSON(function(json){
+    .afterJSON(function(loginResponse){
         frisby.create('Get logged in user profile')
             .useApp(app)
-            .addHeader('Authorization', 'Bearer ' + json.token)
+            .addHeader('Authorization', 'Bearer ' + loginResponse.token)
             .get(BASE_URL + 'me')
             .expectStatus(200)
             .afterJSON(function(profile) {
-                assert.equal(profile.data.emailId, testUser.emailId);
+                assert.equal(profile.emailId, testUser.emailId);
             })
         .toss();
     })
@@ -91,16 +91,31 @@ frisby.create('Profile should not contain password attribute')
     .useApp(app)
     .post(BASE_URL + 'users/login', {emailId:testUser.emailId, password: testUser.password}, {json:true})
     .expectStatus(200)
-    .afterJSON(function(json){
-        frisby.create('Get logged in user profile')
+    .afterJSON(function(loginResponse){
+        frisby.create('Get logged in user profile and verify for password')
             .useApp(app)
-            .addHeader('Authorization', 'Bearer ' + json.token)
+            .addHeader('Authorization', 'Bearer ' + loginResponse.token)
             .get(BASE_URL + 'me')
             .expectStatus(200)
             .afterJSON(function(profile) {
                 // Profile should not contain the password
-                assert.equal(profile.data.password, undefined);
+                assert.equal(profile.password, undefined);
             })
         .toss();
     })
 .toss();
+
+frisby.create('Must not be able to change emailId while updating the profile')
+    .useApp(app)
+    .post(BASE_URL + 'users/login', {emailId:testUser.emailId, password: testUser.password}, {json:true})
+    .expectStatus(200)
+    .afterJSON(function(loginResponse){
+        frisby.create('Update profile emailId')
+            .useApp(app)
+            .addHeader('Authorization', 'Bearer ' + loginResponse.token)
+            .put(BASE_URL + 'me', {emailId:"newmail@test.org"}, {json:true})
+            .expectStatus(400)
+        .toss();
+    })
+.toss();
+})(createUser());

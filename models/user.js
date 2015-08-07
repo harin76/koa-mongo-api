@@ -3,100 +3,55 @@ let _ = require('lodash'),
     UserSchema = require('../schemas/user'),
     bcrypt = require('co-bcryptjs'),
     db = require('../db');
-/**
-* Define the user model.
-* The method acts as a constructor which creates the user object based on
-* the fields passed in as its parameter. Utilizes the schema defined in {UserSchema}
-*
-* @param {object} data      Attributes of the user model
-*/
-var User = function (data) {
-    this.data = this.sanitize(data);
-};
-User.prototype.data = {};
+let User = function() {};
 /**
 * Hashes the password with salt
-* @param {string}           password
+* @param {string} password              The password string to be hashed
+* @return {string}                      The hashed password
 */
-User.prototype.hashPassword = function *(password) {
+User.hashPassword = function *(password) {
     let salt = yield bcrypt.genSalt(10);
     return yield bcrypt.hash(password, salt);
 };
 /**
-* Getter for the {User} object
-*
-* @param {string} prop      The property name whaich needs to be retrieved
-*/
-User.prototype.get = function (prop) {
-    return this.data[prop];
-};
-/**
-* Setter for the {User} object
-*
-* @param {string} prop      The property to be set
-* @param {object} value     The value of the property
-*/
-User.prototype.set = function (prop, value) {
-    this[prop] = value;
-};
-/**
-* Sanitizes the data against its schema
-* @param {object} data      The data to be sanitised
-*/
-User.prototype.sanitize = function (data) {
-    data = data || {};
-    return UserSchema.sanitize(data);
-};
-/**
-* Validates the user model
-*
-* @param {object}           The data to be validated
-*/
-User.prototype.validate = function *(data) {
-    return UserSchema.validate(data);
-};
-/**
 * Create a new user in the database
 *
-* @param {object} coll  A mongodb collection
+* @param {object} coll              A mongodb collection
+* @param {object} payload           User data to be created
 */
-User.prototype.create = function *(coll) {
-    let errors = yield this.validate(this.data);
+User.create = function *(coll, payload) {
+    let user = UserSchema.sanitize(payload);
+    let errors = UserSchema.validate(user);
     if(errors) {
         return {
             errors: errors
         };
     }
-    let dbUser = yield db.findOne(coll, {emailId: this.data.emailId});
+    let dbUser = yield db.findOne(coll, {emailId: user.emailId});
     if(dbUser) {
         return {errors: [{message: 'EmailId already exists in the database'}]};
     }
-    this.data.password = yield this.hashPassword(this.data.password);
-    let inserted = yield db.insert(coll, this.data);
-    return {data: inserted};
+    user.password = yield User.hashPassword(user.password);
+    let createdUser = yield db.insert(coll, user);
+    return UserSchema.clean(createdUser);
 };
 /**
 * Verifies the existing user based on the password
 *
 * @param {object} coll          A mongodb collection
 */
-User.prototype.verify = function *(coll) {
-    let errors = yield this.validate(this.data);
-    if(errors) {
-        return {
-            errors: errors
-        };
-    }
-    let dbUser = yield db.findOne(coll, {emailId: this.data.emailId});
-    if(!dbUser || (!(yield bcrypt.compare(this.data.password, dbUser.password)))){
+User.verify = function *(coll, emailId, password) {
+    let dbUser = yield db.findOne(coll, {emailId: emailId});
+    if(!dbUser || (!(yield bcrypt.compare(password, dbUser.password)))){
         return {errors: [{message: 'Invalid username or password'}]};
     }
-    return {data:dbUser};
+    return UserSchema.clean(dbUser);
 };
 /**
 * Find user by id, please note that the method is at the object level (not in the prototype)
 *
-* @param {object} coll          A mongodb collection
+* @param {object} coll              A mongodb collection
+* @param {string} id                The id of the user object to be fetched
 */
 User.findById = function *(coll, id) {
     let dbUser = yield db.findById(coll, id);
@@ -104,6 +59,27 @@ User.findById = function *(coll, id) {
         return {errors: [{message: 'Could not find user with the id'}]};
     }
     // Return data omitting the password
-    return {data: _.omit(dbUser, 'password')};
+    return UserSchema.clean(dbUser);
+};
+/**
+* Updates a user based on its id
+*
+* @param {object} coll              A mongodb collection
+* @param {object} payload           Payload containing data to be updated along with id attribute
+*/
+User.update = function *(coll, id, payload) {
+    let errors = UserSchema.validateForUpdate(payload);
+    if(errors) {
+        return {
+            errors : errors
+        };
+    }
+    let user = UserSchema.prepareForUpdate(payload);
+    if(!user) {
+        return {errors: [{message: 'Invalid user data passed for update'}]};
+    }
+    let result = yield db.update(coll, {_id:id}, user);
+    let dbUser = yield db.findById(coll, id);
+    return UserSchema.clean(dbUser);
 };
 module.exports = User;
