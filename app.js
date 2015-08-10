@@ -7,12 +7,13 @@ let koa = require('koa'),
     authlib = require('./lib/authlib'),
     mountHelper = require('./lib/mount-helper'),
     config = require('./config'),
-    services = require('./services');
+    services = require('./services'),
+    morgan = require('koa-morgan');
 
 
 let app = koa();
 
-
+app.use(morgan.middleware('combined', {}));
 app.use(cors({
     headers:['Content-Type', 'Authorization'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
