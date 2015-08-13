@@ -2,7 +2,7 @@
 let parse = require('co-body'),
     db = require('../../db'),
     User = require('../../models/user'),
-    authLib = require('../../lib/authLib'),
+    authLib = require('../../lib/authlib'),
     Constants = require('../../lib/constants'),
     jwt = require('jsonwebtoken'),
     config = require('../../config');
